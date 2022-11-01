@@ -2,6 +2,13 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\api\v1\ParkingController;
+use App\Http\Controllers\api\v1\Parking_placeController;
+use App\Http\Controllers\api\v1\UserController;
+use App\Http\Controllers\api\v1\OwnerController;
+use App\Http\Controllers\api\v1\VehicleController;
+use App\Http\Controllers\api\v1\TicketController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -14,6 +21,26 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
+Route::apiResource('v1/users', UserController::class);
+Route::apiResource('v1/parkings', ParkingController::class);
+Route::apiResource('v1/parking_places', Parking_placeController::class);
+
+Route::get('v1/parkings/{parking}/parking_places', [Parking_placeController::class, 'index']);
+Route::post('v1/parkings/{parking}/parking_places', [Parking_placeController::class, 'store']);
+Route::get('api/v1/parkings/{parking}/parking_places?status=available', [Parking_placeController::class, 'available']);
+
+Route::apiResource('v1/owners', OwnerController::class);
+Route::apiResource('v1/vehicles', VehicleController::class);
+
+Route::apiResource('v1/tickets', TicketController::class);
+Route::post('v1/parkings/{parking}/tickets', [TicketController::class, 'store']);
+
+
+Route::post('/v1/login',[App\Http\Controllers\api\v1\AuthController::class,'login'])
+->name('api.login');
+
+Route::middleware(['auth:sanctum'])->group(function() {
+    Route::post('/v1/logout', [App\Http\Controllers\api\v1\AuthController::class,'logout'])
+    ->name('api.logout');
+   });
+   

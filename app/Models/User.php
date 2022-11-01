@@ -23,6 +23,11 @@ class User extends Authenticatable
         'password',
     ];
 
+    public function parking()
+    {
+        return $this->hasMany(Parking::class);
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *
