@@ -38,6 +38,13 @@ class TicketController extends Controller
         return response()->json(['data' => $ticket], 201);
     }
 
+    public function unpark(Ticket $ticket)
+    {
+        $ticket->exit_time = now();
+        return response()->json(['data' => $ticket], 200);
+    }
+   
+
     /**
      * Display the specified resource.
      *
@@ -58,7 +65,9 @@ class TicketController extends Controller
      */
     public function update(Request $request, Ticket $ticket)
     {
-        $ticket->update($request->all());
+        // $ticket->update($request->all());
+        $ticket->exit_time = now();
+        $ticket->save();
         return response()->json(['data' => $ticket], 200);
     }
 
