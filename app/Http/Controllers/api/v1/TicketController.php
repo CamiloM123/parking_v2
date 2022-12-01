@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\api\v1;
 
-use App\Http\Controllers\Controller;
 use App\Models\Ticket;
-use Illuminate\Http\Request;
-use App\Http\Requests\api\v1\TicketStoreRequest;
 use App\Models\Parking;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\api\v1\TicketStoreRequest;
+use App\Models\Parking_place;
 
 class TicketController extends Controller
 {
@@ -29,21 +30,61 @@ class TicketController extends Controller
      */
     public function store(TicketStoreRequest $request, Parking $parking)
     { 
-        $ticket = new Ticket();
-        $ticket->parking_place_id = $request->input('parking_place_id');
-        $ticket->vehicle_id = $request->input('vehicle_id');
-        $ticket->parking_id = $parking->id;
-        $ticket->save();
+        $parking_id = $parking->id;
+        $parking_place = Parking_place :: find($request->input('parking_place_id'));
+
+        $place = $this->availableOne($parking_id, $parking_place->row, $parking_place->column);
+        $place = $place->first();
+
+        if($place != [] ){
+
+            $ticket = new Ticket();
+            $ticket->parking_place_id = $request->input('parking_place_id');
+            $ticket->vehicle_id = $request->input('vehicle_id');
+            $id = $ticket->vehicle_id;
+            $ticket->parking_id = $parking->id;
+            $ticket->save();
         
-        return response()->json(['data' => $ticket], 201);
+            return response()->json(['message'=>'El carro con id '.$id.' ha sido parqueado' ,
+                                    'data' => $ticket], 201);
+        }else{
+
+            return response()->json(['message'=>'Ese lugar de estacionamiento no esta disponible'
+                                    ], 400);
+        }
     }
 
-    public function unpark(Ticket $ticket)
+    public function availables($parking_id)
     {
-        $ticket->exit_time = now();
-        return response()->json(['data' => $ticket], 200);
+        //Lugares de estacionamiento disponibles
+        $parking_places = Parking_place :: 
+            whereDoesntHave('tickets', function ($query) 
+            {
+                $query->where('exit_time','=', null);
+            })
+            ->where('parking_id',$parking_id)->get();
+
+        return $parking_places;
     }
-   
+
+    /**
+     * Display a listing of individual available parking place.
+     *
+     * @param  $parking_id, $row, $column
+     * @return $place
+     */
+    public function availableOne($parking_id, $row, $column)
+    {   
+        //Lugares de estacionamiento disponibles
+        $parking_places = $this->availables($parking_id);
+        
+        //Mirar si uno en especifico esta disponible
+        $place = $parking_places
+            ->where('row', '=', $row)
+            ->where('column', '=', $column);
+
+            return $place;
+    }
 
     /**
      * Display the specified resource.
@@ -63,12 +104,18 @@ class TicketController extends Controller
      * @param  \App\Models\Ticket  $ticket
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Ticket $ticket)
+    public function update(Request $request, Parking $parking, Ticket $ticket)
     {
-        // $ticket->update($request->all());
-        $ticket->exit_time = now();
-        $ticket->save();
-        return response()->json(['data' => $ticket], 200);
+        
+        if($ticket->exit_time == null){
+            $ticket->exit_time = now();
+            $ticket->save();
+            return response()->json(['message'=>'El carro con id '.$ticket->vehicle_id.' ha salido del parqueadero correctamente' ,
+                                    'data' => $ticket], 200);
+        }else{
+            return response()->json(['message'=>'El carro con id '.$ticket->vehicle_id.' ya salio del parqueadero' ,
+                                    'data' => $ticket], 400);
+        }
     }
 
     /**
