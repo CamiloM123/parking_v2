@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Parking;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -21,13 +22,13 @@ class ParkingsSeeder extends Seeder
         Parking::create([
             'name' => 'Parking 1',
             'address' => 'Cra 19 # 49-32',  
-            'user_id' => 1,
+            'user_id' => User::first()->id,
         ]);
 
         Parking::create([
             'name' => 'Parking 2',
             'address' => 'Cra 43 # 65-10', 
-            'user_id' => 2, 
+            'user_id' => User::first()->id,
         ]);
     }
 }

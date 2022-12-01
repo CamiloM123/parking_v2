@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Models\Parking;
 use Illuminate\Http\Request;
 use App\Models\Parking_place;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\api\v1\Parking_placeStoreRequest;
 
@@ -17,67 +18,114 @@ class Parking_placeController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index(Parking $parking, Request $request)
-    {
-        $parking_places = Parking_place::orderBy('id', 'asc')->get();
-    
-        if(isset($parking)){
-        
-            $parking_places = Parking_place::where('parking_id', $parking->id)->orderBy('id', 'asc')->get();
-            
-        }
-
+    {   
+        $id = $parking->id;
         if($request->input('status') == 'available'){
+        
+            //Obtener los lugares de estacionamiento que estan disponibles
+            $parking_places = $this->availables($id);
+            $count = $parking_places->count();
+
+            //Obtener la cantidad de motos y carros que estan estacionados
+            list($carros,$motos) = $this->countSta($id);
+
+            return response()->json(['message' => 'La cantidad de motos es de '.$motos.' y la cantidad de carros es de '.$carros.'. La cantidad de lugares disponibles es de '.$count ,
+                                     'data' => $parking_places], 200);
+
+        }
+        elseif($request->input('status') == 'availableOne'){
             
-            // $parking_places = collect();
+            //Mirar si un estacionamiento en especifico esta disponible
+            $place = $this->availableOne($id, $request->input('row'), $request->input('column'));
+            $place = $place->first();
+            if($place != []){
+            return response()->json(['message' => 'Ese lugar de estacionamiento si esta disponible',
+                                    'data' => $place,
+                                    ]
+                                    , 200);
+            }else{
+                return response()->json(['message' => 'Ese lugar de estacionamiento no esta disponible'], 400);
+            }
+        }
+        else{
 
-            // foreach ($parking->parking_places as $parking_place) {
-            //     $tickets = $parking_place->tickets;
-            //     $ticket = $tickets->last();
-
-            //     if($ticket->exit_time != null){
-            //         $parking_places->push($parking_place);
-            //     }
-            //     // $ticket = Ticket :: where('parking_place_id', $parking_place->id)
-            //     // ->last();
-            //     // $parking_places->push($ticket);
-            // }
-
-            $parking_places = Parking_place :: whereDoesntHave('tickets', function($query){
-                $query->where('exit_time', null);
-            })->where('parking_id',$parking->id)->get();
+            $parking_places = Parking_place::where('parking_id', $id)->orderBy('id', 'asc')->get();
+            return response()->json(['data' => $parking_places], 200);
 
         }
 
-        return response()->json(['data' => $parking_places], 200);
-    }
-    /**
-     * Display a listing of the resource but of an unique parking.
-     *
-     * @param  \Illuminate\Http\Parking  $parking
-     * @return \Illuminate\Http\Response
-     */
-
-    // public function available(Request $request, Parking $parking)
-    // {
         
-    //     return response()->json(['data' =>  ], 200);
-    // }
+    }
 
     /**
-     * Display a listing of the resource but of an unique parking.
+     * Display a listing of availables parking places.
      *
-     * @param  \Illuminate\Http\Parking  $parking
-     * @return \Illuminate\Http\Response
+     * @param  $parking_id
+     * @return $parking_places
      */
 
-    // public function list(Parking $parking)
-    // {
-    //     if($parking->isset()){
+    public function availables($parking_id)
+    {
+        //Lugares de estacionamiento disponibles
+        $parking_places = Parking_place :: 
+            whereDoesntHave('tickets', function ($query) 
+            {
+                $query->where('exit_time','=', null);
+            })
+            ->where('parking_id',$parking_id)->get();
 
-    //     }
-    //     $parking_places = Parking_place::where('parking_id', $parking->id)->orderBy('id', 'asc')->get();
-    //     return response()->json(['data' => $parking_places], 200);
-    // }
+        return $parking_places;
+    }
+
+    /**
+     * Display a listing of individual available parking place.
+     *
+     * @param  $parking_id, $row, $column
+     * @return $place
+     */
+    public function availableOne($parking_id, $row, $column)
+    {   
+        //Lugares de estacionamiento disponibles
+        $parking_places = $this->availables($parking_id);
+        
+        //Mirar si uno en especifico esta disponible
+        $place = $parking_places
+            ->where('row', '=', $row)
+            ->where('column', '=', $column);
+
+            return $place;
+    }
+
+    /**
+     * Return the parking statistics.
+     *
+     * @param  $parking_id
+     * @return $carros, $motos
+     */
+
+    public function countSta($parking_id)
+    {
+        //Obtener la cantidad de motos y carros que estan estacionados
+        $tickets = Parking::find($parking_id)->tickets()->get();
+        $carros = 0;
+        $motos = 0;
+        $tickets = $tickets->filter(function ($ticket) {
+            return $ticket->exit_time == null;
+        });
+        foreach($tickets as $ticket){
+            $vehicle = $ticket->vehicle()->get()->first();
+            $type = $vehicle->type_id;
+            if($type == 1){
+                $carros++;
+            }else{
+                $motos++;
+            }      
+        }
+        return [$carros, $motos];
+    }
+
+    
+
 
     /**
      * Store a newly created resource in storage.

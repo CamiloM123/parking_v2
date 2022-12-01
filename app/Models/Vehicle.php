@@ -23,7 +23,7 @@ class Vehicle extends Model
 
     public function type()
     {
-        return $this->hasOne(Type::class);
+        return $this->hasMany(Type::class);
     }
 
     public function tickets()
